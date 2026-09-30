@@ -16,6 +16,29 @@ Next up, once you say "go", it launches a *subagent-driven-development* process,
 
 There's a bunch more to it, but that's the core of the system. And because the skills trigger automatically, you don't need to do anything special. Your coding agent just has colbPowers.
 
+## Background: bachelor's thesis
+
+colbPowers is the development phase of my bachelor's thesis (FIB – UPC, 2026), carried out at [Colb.ai](https://colb.ai). The thesis automates the lifecycle of a client software project around one idea: **the AI writes the design documents and plans, and the developer reviews and approves them before any code is written.**
+
+| Phase | Module | In this repo |
+|---|---|---|
+| Requirements | **Requirements intake**: meeting audio → speaker-labelled transcript (Azure Speech batch API with diarization) → researched architecture plan (LangChain, two-tier LLMs, Tavily web search, human in the loop) → GitHub issues | [`modules/requirements-intake`](modules/requirements-intake) |
+| Development | **colbPowers**: spec-first coding-agent workflow | This plugin (repository root) |
+| Client follow-up | **Meeting summarizer**: transcript → structured `.docx` follow-up document | [`modules/client-follow-up`](modules/client-follow-up) |
+
+The full thesis (in Spanish) is in [`docs/thesis/memoria_TFG_Adria.pdf`](docs/thesis/memoria_TFG_Adria.pdf). The modules are described in chapter 5 and colbPowers in chapter 6.
+
+### Evaluation
+
+Chapter 7 compares colbPowers (with code-review-graph) against a baseline of the assistant's native tools only. It covers two tasks, two assistants (OpenCode with DeepSeek V4-Flash, Claude Code with Haiku 4.5) and 3 runs per condition. It uses Welch's t-test and Hedges' g. The main findings:
+
+- **New project from scratch (Python):** with OpenCode, colbPowers reduced cyclomatic complexity by 27% (p = 0.014) and raised the maintainability index by 15% (p = 0.037). With Claude Code, which already produced cleaner code in the baseline, the differences were not significant.
+- **Removing features from an existing repository (Flutter):** no quality gain. Complexity rose by 26% with OpenCode (p = 0.029). The agents barely called code-review-graph, so the dependency context never paid off.
+- **Consistency:** with colbPowers active, the quality gap between the two assistants disappeared (g ≈ 0).
+- **Cost:** colbPowers used 2.2–4.5× more tokens in every setting, because of the spec documents, 9–14 subagents per session and the review passes.
+
+With n = 3 per condition, these results are suggestive rather than conclusive. The thesis discusses this limitation.
+
 
 ## Installation
 
@@ -105,6 +128,16 @@ The `permission` block below is just an example — configure it however tightly
 }
 ```
 
+### Set up your project
+
+colbPowers keeps project memory under `.specs/` in your repository. Copy the starter template into the root of your project:
+
+```bash
+cp -r path/to/colbPowers/template/.specs .
+```
+
+This adds `.specs/templates/` (the constitution and features templates the agent asks you to fill in) and empty `.specs/memory/docs/specs/` and `.specs/memory/docs/plans/` folders, where design docs and plans are saved.
+
 ### Verify Installation
 
 Start a new session in your chosen platform and ask for something that should trigger a skill (for example, "help me plan this feature" or "let's debug this issue"). The agent should automatically invoke the relevant colbPowers skill.
@@ -179,6 +212,20 @@ The graph auto-updates on file changes via hooks, so it stays in sync as the age
 ### Why it's separate
 
 code-review-graph requires its own setup and infrastructure (a running MCP server). Bundling it into colbPowers would add a hard dependency that breaks the zero-dependency spirit of the skills system. Instead, colbPowers detects it at runtime and upgrades its behavior transparently when available.
+
+## Repository Layout
+
+```
+skills/        workflow skills (colbPowers additions + adapted superpowers skills)
+hooks/         SessionStart hook that injects the using-colbPowers bootstrap
+.opencode/     OpenCode adapter plugin
+template/      starter .specs/ folder to copy into your project
+modules/       the thesis's other modules (Python apps):
+  requirements-intake/   meeting audio → transcript → architecture plan → GitHub issues
+  client-follow-up/      meeting transcript → .docx follow-up document (spec, plan, code, tests)
+docs/thesis/   thesis excerpt describing all modules (Spanish)
+docs/          design docs and plans from colbPowers' own development
+```
 
 ## Philosophy
 
